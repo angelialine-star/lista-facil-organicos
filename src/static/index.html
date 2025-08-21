@@ -37,12 +37,37 @@
             <div class="admin-actions">
                 <button id="manage-products-btn" class="btn btn-primary">Gerenciar Produtos</button>
                 <button id="create-list-btn" class="btn btn-success">Nova Lista Semanal</button>
+                <button id="edit-list-btn" class="btn btn-warning hidden">Editar Lista Ativa</button>
+                <button id="manage-lists-btn" class="btn btn-info">Gerenciar Listas</button>
             </div>
 
             <div id="products-management" class="products-section hidden">
                 <h2>Gerenciar Produtos</h2>
                 <button id="add-product-btn" class="btn btn-primary">+ Novo Produto</button>
                 <div id="products-list" class="products-grid"></div>
+            </div>
+
+            <div id="lists-management" class="lists-section hidden">
+                <h2>Gerenciar Listas Semanais</h2>
+                <div id="lists-grid" class="lists-grid"></div>
+            </div>
+
+            <div id="edit-list-section" class="edit-list-section hidden">
+                <h2>Editar Lista Ativa</h2>
+                <div class="edit-list-content">
+                    <div class="products-selection">
+                        <h3>Produtos Disponíveis</h3>
+                        <div id="available-products" class="products-selection-grid"></div>
+                    </div>
+                    <div class="list-products">
+                        <h3>Produtos na Lista</h3>
+                        <div id="list-products" class="products-selection-grid"></div>
+                    </div>
+                    <div class="edit-actions">
+                        <button id="save-list-changes" class="btn btn-success">Salvar Alterações</button>
+                        <button id="cancel-list-edit" class="btn btn-secondary">Cancelar</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
