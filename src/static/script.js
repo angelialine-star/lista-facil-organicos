@@ -1,10 +1,13 @@
-// Estado da aplicação
+// Variáveis globais
 let currentView = 'loading'; // loading, main, login, admin
 let selectedProducts = [];
 let allProducts = [];
 let categories = [];
+let allLists = [];
+let activeList = null;
 let isAuthenticated = false;
 let editingProduct = null;
+let editingListProducts = [];
 
 // Elementos DOM
 const elements = {
@@ -23,8 +26,14 @@ const elements = {
     productForm: document.getElementById('product-form'),
     productsManagement: document.getElementById('products-management'),
     productsList: document.getElementById('products-list'),
+    listsManagement: document.getElementById('lists-management'),
+    listsGrid: document.getElementById('lists-grid'),
+    editListSection: document.getElementById('edit-list-section'),
+    availableProducts: document.getElementById('available-products'),
+    listProducts: document.getElementById('list-products'),
     totalProducts: document.getElementById('total-products'),
-    activeList: document.getElementById('active-list')
+    activeListSpan: document.getElementById('active-list'),
+    editListBtn: document.getElementById('edit-list-btn')
 };
 
 // Inicialização
@@ -53,7 +62,13 @@ function setupEventListeners() {
     // Admin actions
     document.getElementById('manage-products-btn').addEventListener('click', showProductsManagement);
     document.getElementById('create-list-btn').addEventListener('click', createWeeklyList);
+    document.getElementById('edit-list-btn').addEventListener('click', showEditList);
+    document.getElementById('manage-lists-btn').addEventListener('click', showListsManagement);
     document.getElementById('add-product-btn').addEventListener('click', () => showProductModal());
+    
+    // Edit list actions
+    document.getElementById('save-list-changes').addEventListener('click', saveListChanges);
+    document.getElementById('cancel-list-edit').addEventListener('click', cancelListEdit);
     
     // Modal
     document.getElementById('close-modal').addEventListener('click', hideProductModal);
@@ -127,80 +142,114 @@ async function handleLogout() {
 }
 
 // Navegação entre telas
-function showView(viewName) {
-    // Esconder todas as telas
+function showLogin() {
+    hideAllScreens();
+    elements.loginScreen.classList.remove('hidden');
+    currentView = 'login';
+}
+
+function showMainApp() {
+    hideAllScreens();
+    elements.mainApp.classList.remove('hidden');
+    currentView = 'main';
+    loadMainApp();
+}
+
+function showAdminPanel() {
+    hideAllScreens();
+    elements.adminPanel.classList.remove('hidden');
+    currentView = 'admin';
+    loadAdminData();
+}
+
+function hideAllScreens() {
     elements.loading.classList.add('hidden');
     elements.mainApp.classList.add('hidden');
     elements.loginScreen.classList.add('hidden');
     elements.adminPanel.classList.add('hidden');
     
-    // Mostrar tela específica
-    switch(viewName) {
-        case 'loading':
-            elements.loading.classList.remove('hidden');
-            break;
-        case 'main':
-            elements.mainApp.classList.remove('hidden');
-            break;
-        case 'login':
-            elements.loginScreen.classList.remove('hidden');
-            break;
-        case 'admin':
-            elements.adminPanel.classList.remove('hidden');
-            break;
-    }
-    
-    currentView = viewName;
+    // Esconder seções do admin
+    elements.productsManagement.classList.add('hidden');
+    elements.listsManagement.classList.add('hidden');
+    elements.editListSection.classList.add('hidden');
 }
 
-function showLogin() {
-    showView('login');
-}
-
-function showMainApp() {
-    showView('main');
-    if (allProducts.length === 0) {
-        loadMainApp();
-    }
-}
-
-function showAdminPanel() {
-    showView('admin');
-    loadAdminData();
-}
-
-// Carregamento da aplicação principal
+// Carregamento de dados
 async function loadMainApp() {
-    showView('loading');
-    
     try {
-        // Carregar lista ativa
-        const response = await fetch('/api/public/list/active');
+        elements.loading.classList.remove('hidden');
         
-        if (response.ok) {
-            const data = await response.json();
-            displayProductsList(data);
-            elements.weekInfo.textContent = data.list_info.title;
+        const response = await fetch('/api/public/weekly-list');
+        const data = await response.json();
+        
+        if (data.categories && data.categories.length > 0) {
+            elements.weekInfo.textContent = data.title || 'Lista da Semana';
+            displayProducts(data);
         } else {
             elements.weekInfo.textContent = 'Nenhuma lista ativa encontrada';
-            elements.productsListClient.innerHTML = '<p style=\"text-align: center; padding: 40px; color: #757575;\">Nenhuma lista de produtos disponível no momento.</p>';
+            elements.productsListClient.innerHTML = '<p style="text-align: center; padding: 40px; color: #757575;">Nenhuma lista de produtos disponível no momento.</p>';
         }
         
-        showView('main');
+        elements.loading.classList.add('hidden');
     } catch (error) {
-        console.error('Erro ao carregar lista:', error);
-        elements.weekInfo.textContent = 'Erro ao carregar lista';
-        showView('main');
+        console.error('Erro ao carregar dados:', error);
+        elements.loading.classList.add('hidden');
+        elements.productsListClient.innerHTML = '<p style="text-align: center; padding: 40px; color: #f44336;">Erro ao carregar produtos. Tente novamente.</p>';
     }
 }
 
-// Exibição da lista de produtos
-function displayProductsList(data) {
+async function loadAdminData() {
+    try {
+        // Carregar produtos
+        const productsResponse = await fetch('/api/admin/products');
+        if (productsResponse.ok) {
+            allProducts = await productsResponse.json();
+            elements.totalProducts.textContent = allProducts.length;
+        }
+        
+        // Carregar categorias
+        const categoriesResponse = await fetch('/api/admin/categories');
+        if (categoriesResponse.ok) {
+            categories = await categoriesResponse.json();
+            updateCategorySelect();
+        }
+        
+        // Carregar listas
+        const listsResponse = await fetch('/api/admin/weekly-lists');
+        if (listsResponse.ok) {
+            allLists = await listsResponse.json();
+        }
+        
+        // Carregar lista ativa
+        try {
+            const activeListResponse = await fetch('/api/admin/weekly-lists/active');
+            if (activeListResponse.ok) {
+                activeList = await activeListResponse.json();
+                elements.activeListSpan.textContent = activeList.title;
+                elements.editListBtn.classList.remove('hidden');
+            } else {
+                activeList = null;
+                elements.activeListSpan.textContent = 'Nenhuma';
+                elements.editListBtn.classList.add('hidden');
+            }
+        } catch (error) {
+            activeList = null;
+            elements.activeListSpan.textContent = 'Nenhuma';
+            elements.editListBtn.classList.add('hidden');
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar dados do admin:', error);
+    }
+}
+
+// Exibição de produtos para clientes
+function displayProducts(data) {
     const container = elements.productsListClient;
     container.innerHTML = '';
     
     if (!data.categories || data.categories.length === 0) {
-        container.innerHTML = '<p style=\"text-align: center; padding: 40px; color: #757575;\">Nenhum produto disponível.</p>';
+        container.innerHTML = '<p style="text-align: center; padding: 40px; color: #757575;">Nenhum produto disponível.</p>';
         return;
     }
     
@@ -262,7 +311,7 @@ function toggleProduct(product) {
 }
 
 function updateProductUI(productId, selected) {
-    const productItem = document.querySelector(`[data-product-id=\"${productId}\"]`);
+    const productItem = document.querySelector(`[data-product-id="${productId}"]`);
     const checkbox = productItem.querySelector('.product-checkbox');
     
     if (selected) {
@@ -302,7 +351,7 @@ function updateSelectedItemsList() {
         
         itemDiv.innerHTML = `
             <span class="item-name">${product.name}${organicSymbol}</span>
-            <span class="item-price">R$ ${itemTotal.toFixed(2)}</span>
+            <span class="item-details">${product.quantity} ${product.unit} × R$ ${product.price.toFixed(2)} = R$ ${itemTotal.toFixed(2)}</span>
         `;
         
         elements.selectedItems.appendChild(itemDiv);
@@ -310,97 +359,81 @@ function updateSelectedItemsList() {
 }
 
 function toggleSummary() {
-    const details = elements.summaryDetails;
+    const isVisible = !elements.summaryDetails.classList.contains('hidden');
     const toggleBtn = document.getElementById('toggle-summary');
     
-    if (details.style.display === 'none') {
-        details.style.display = 'block';
-        toggleBtn.textContent = '▼';
-    } else {
-        details.style.display = 'none';
+    if (isVisible) {
+        elements.summaryDetails.classList.add('hidden');
         toggleBtn.textContent = '▲';
+    } else {
+        elements.summaryDetails.classList.remove('hidden');
+        toggleBtn.textContent = '▼';
     }
 }
 
-// Envio para WhatsApp
-async function sendWhatsAppMessage() {
+// WhatsApp
+function sendWhatsAppMessage() {
     if (selectedProducts.length === 0) {
-        alert('Selecione pelo menos um produto');
+        alert('Selecione pelo menos um produto antes de enviar o pedido.');
         return;
     }
     
-    const customerName = prompt('Digite seu nome:') || 'Cliente';
+    const customerName = prompt('Digite seu nome para identificação:');
+    if (!customerName) {
+        return;
+    }
     
-    try {
-        const response = await fetch('/api/public/generate-whatsapp-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                products: selectedProducts,
-                customer_name: customerName
-            })
+    let message = `🛒 *PEDIDO - ${customerName}*\n\n`;
+    message += `📋 *Produtos selecionados:*\n\n`;
+    
+    // Agrupar produtos por categoria
+    const productsByCategory = {};
+    selectedProducts.forEach(product => {
+        const categoryName = getCategoryNameByProduct(product);
+        if (!productsByCategory[categoryName]) {
+            productsByCategory[categoryName] = [];
+        }
+        productsByCategory[categoryName].push(product);
+    });
+    
+    // Adicionar produtos agrupados por categoria
+    Object.keys(productsByCategory).forEach(categoryName => {
+        message += `${categoryName}\n`;
+        productsByCategory[categoryName].forEach(product => {
+            const organicSymbol = product.is_organic ? ' 🌱' : '';
+            const itemTotal = product.price * product.quantity;
+            message += `• ${product.name}${organicSymbol}\n`;
+            message += `  ${product.quantity} ${product.unit} × R$ ${product.price.toFixed(2)} = R$ ${itemTotal.toFixed(2)}\n`;
         });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            // Abrir WhatsApp
-            window.open(data.whatsapp_url, '_blank');
-            
-            // Limpar seleção após envio
-            selectedProducts = [];
-            updateOrderSummary();
-            
-            // Atualizar UI
-            document.querySelectorAll('.product-item').forEach(item => {
-                item.classList.remove('selected');
-                item.querySelector('.product-checkbox').classList.remove('checked');
-            });
-        } else {
-            alert('Erro ao gerar mensagem: ' + data.error);
-        }
-    } catch (error) {
-        console.error('Erro ao enviar mensagem:', error);
-        alert('Erro ao enviar mensagem');
-    }
+        message += '\n';
+    });
+    
+    const totalPrice = selectedProducts.reduce((sum, product) => sum + (product.price * product.quantity), 0);
+    message += `💰 *TOTAL DO PEDIDO:*\n`;
+    message += `R$ ${totalPrice.toFixed(2)}\n\n`;
+    message += `📱 Pedido gerado automaticamente via Lista Fácil\n`;
+    message += `🚚 Aguardo confirmação para combinar entrega!`;
+    
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://api.whatsapp.com/send/?phone=5582996603943&text=${encodedMessage}&type=phone_number&app_absent=0`;
+    
+    window.open(whatsappUrl, '_blank');
 }
 
-// Painel Administrativo
-async function loadAdminData() {
-    try {
-        // Carregar estatísticas
-        const [productsResponse, categoriesResponse] = await Promise.all([
-            fetch('/api/admin/products'),
-            fetch('/api/admin/categories')
-        ]);
-        
-        if (productsResponse.ok) {
-            allProducts = await productsResponse.json();
-            elements.totalProducts.textContent = allProducts.length;
-        }
-        
-        if (categoriesResponse.ok) {
-            categories = await categoriesResponse.json();
-            updateCategorySelect();
-        }
-        
-        // Carregar lista ativa
-        try {
-            const activeListResponse = await fetch('/api/admin/weekly-lists/active');
-            if (activeListResponse.ok) {
-                const activeList = await activeListResponse.json();
-                elements.activeList.textContent = activeList.title;
-            }
-        } catch (error) {
-            elements.activeList.textContent = 'Nenhuma';
-        }
-        
-    } catch (error) {
-        console.error('Erro ao carregar dados admin:', error);
+function getCategoryNameByProduct(product) {
+    // Esta função deveria buscar a categoria do produto, mas como não temos essa info no selectedProducts,
+    // vamos usar uma categoria padrão ou buscar dos dados carregados
+    const fullProduct = allProducts.find(p => p.id === product.id);
+    if (fullProduct && fullProduct.category) {
+        return `${fullProduct.category.emoji} ${fullProduct.category.name}`;
     }
+    return '📦 PRODUTOS';
 }
 
+// Gestão de produtos (Admin)
 function showProductsManagement() {
+    hideAllScreens();
+    elements.adminPanel.classList.remove('hidden');
     elements.productsManagement.classList.remove('hidden');
     displayProductsGrid();
 }
@@ -430,6 +463,165 @@ function displayProductsGrid() {
         
         container.appendChild(productCard);
     });
+}
+
+// Gestão de listas (Admin)
+function showListsManagement() {
+    hideAllScreens();
+    elements.adminPanel.classList.remove('hidden');
+    elements.listsManagement.classList.remove('hidden');
+    displayListsGrid();
+}
+
+function displayListsGrid() {
+    const container = elements.listsGrid;
+    container.innerHTML = '';
+    
+    allLists.forEach(list => {
+        const listCard = document.createElement('div');
+        listCard.className = `list-card ${list.is_active ? 'active' : ''}`;
+        
+        const statusClass = list.is_active ? 'active' : 'inactive';
+        const statusText = list.is_active ? 'Ativa' : 'Inativa';
+        
+        listCard.innerHTML = `
+            <h4>${list.title}</h4>
+            <div class="list-status ${statusClass}">${statusText}</div>
+            <div class="list-info">
+                <div>Criada em: ${new Date(list.created_at).toLocaleDateString('pt-BR')}</div>
+                <div>Produtos: ${list.products ? list.products.length : 0}</div>
+            </div>
+            <div class="list-actions">
+                ${!list.is_active ? `<button class="btn btn-success" onclick="activateList(${list.id})">Ativar</button>` : ''}
+                <button class="btn btn-info" onclick="duplicateList(${list.id})">Duplicar</button>
+                <button class="btn btn-warning" onclick="editListProducts(${list.id})">Editar</button>
+                <button class="btn btn-secondary" onclick="deleteList(${list.id})">Remover</button>
+            </div>
+        `;
+        
+        container.appendChild(listCard);
+    });
+}
+
+// Edição de lista ativa
+function showEditList() {
+    if (!activeList) {
+        alert('Não há lista ativa para editar.');
+        return;
+    }
+    
+    hideAllScreens();
+    elements.adminPanel.classList.remove('hidden');
+    elements.editListSection.classList.remove('hidden');
+    loadEditListData();
+}
+
+async function loadEditListData() {
+    try {
+        // Carregar produtos da lista ativa
+        const response = await fetch(`/api/admin/weekly-lists/${activeList.id}/products`);
+        if (response.ok) {
+            editingListProducts = await response.json();
+        } else {
+            editingListProducts = [];
+        }
+        
+        displayEditListProducts();
+    } catch (error) {
+        console.error('Erro ao carregar produtos da lista:', error);
+        editingListProducts = [];
+        displayEditListProducts();
+    }
+}
+
+function displayEditListProducts() {
+    // Produtos disponíveis (não na lista)
+    const availableContainer = elements.availableProducts;
+    availableContainer.innerHTML = '';
+    
+    const availableProducts = allProducts.filter(product => 
+        product.is_available && !editingListProducts.some(lp => lp.id === product.id)
+    );
+    
+    availableProducts.forEach(product => {
+        const productItem = createProductSelectionItem(product, 'add');
+        availableContainer.appendChild(productItem);
+    });
+    
+    // Produtos na lista
+    const listContainer = elements.listProducts;
+    listContainer.innerHTML = '';
+    
+    editingListProducts.forEach(product => {
+        const productItem = createProductSelectionItem(product, 'remove');
+        listContainer.appendChild(productItem);
+    });
+}
+
+function createProductSelectionItem(product, action) {
+    const productItem = document.createElement('div');
+    productItem.className = 'product-selection-item';
+    
+    const organicSymbol = product.is_organic ? ' 🌱' : '';
+    const actionText = action === 'add' ? 'Adicionar' : 'Remover';
+    const actionClass = action === 'add' ? 'add' : 'remove';
+    
+    productItem.innerHTML = `
+        <div class="product-selection-info">
+            <div class="product-selection-name">${product.name}${organicSymbol}</div>
+            <div class="product-selection-price">R$ ${product.price.toFixed(2)} / ${product.unit}</div>
+        </div>
+        <button class="product-selection-action ${actionClass}" onclick="${action}ProductToList(${product.id})">${actionText}</button>
+    `;
+    
+    return productItem;
+}
+
+// Funções para adicionar/remover produtos da lista
+window.addProductToList = function(productId) {
+    const product = allProducts.find(p => p.id === productId);
+    if (product && !editingListProducts.some(lp => lp.id === productId)) {
+        editingListProducts.push(product);
+        displayEditListProducts();
+    }
+};
+
+window.removeProductFromList = function(productId) {
+    editingListProducts = editingListProducts.filter(p => p.id !== productId);
+    displayEditListProducts();
+};
+
+async function saveListChanges() {
+    if (!activeList) {
+        alert('Erro: Nenhuma lista ativa encontrada.');
+        return;
+    }
+    
+    try {
+        const productIds = editingListProducts.map(p => p.id);
+        
+        const response = await fetch(`/api/admin/weekly-lists/${activeList.id}/products`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product_ids: productIds })
+        });
+        
+        if (response.ok) {
+            alert('Lista atualizada com sucesso!');
+            loadAdminData();
+            showAdminPanel();
+        } else {
+            const error = await response.json();
+            alert('Erro ao salvar alterações: ' + (error.message || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar alterações:', error);
+        alert('Erro ao salvar alterações');
+    }
+}
+
+function cancelListEdit() {
+    showAdminPanel();
 }
 
 // Modal de produto
@@ -518,39 +710,6 @@ async function handleProductSubmit(e) {
     }
 }
 
-// Funções globais para os botões
-window.editProduct = function(productId) {
-    const product = allProducts.find(p => p.id === productId);
-    if (product) {
-        showProductModal(product);
-    }
-};
-
-window.deleteProduct = async function(productId) {
-    if (!confirm('Tem certeza que deseja remover este produto?')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/admin/products/${productId}`, {
-            method: 'DELETE'
-        });
-        
-        if (response.ok) {
-            loadAdminData();
-            displayProductsGrid();
-            alert('Produto removido com sucesso!');
-        } else {
-            alert('Erro ao remover produto');
-        }
-    } catch (error) {
-        console.error('Erro ao remover produto:', error);
-        alert('Erro ao remover produto');
-    }
-};
-
-
-
 // Função para criar lista semanal
 async function createWeeklyList() {
     try {
@@ -596,3 +755,105 @@ async function createWeeklyList() {
     }
 }
 
+// Funções globais para os botões
+window.editProduct = function(productId) {
+    const product = allProducts.find(p => p.id === productId);
+    if (product) {
+        showProductModal(product);
+    }
+};
+
+window.deleteProduct = async function(productId) {
+    if (!confirm('Tem certeza que deseja remover este produto?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/products/${productId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadAdminData();
+            displayProductsGrid();
+            alert('Produto removido com sucesso!');
+        } else {
+            alert('Erro ao remover produto');
+        }
+    } catch (error) {
+        console.error('Erro ao remover produto:', error);
+        alert('Erro ao remover produto');
+    }
+};
+
+window.activateList = async function(listId) {
+    try {
+        const response = await fetch(`/api/admin/weekly-lists/${listId}/activate`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            alert('Lista ativada com sucesso!');
+            loadAdminData();
+            displayListsGrid();
+        } else {
+            alert('Erro ao ativar lista');
+        }
+    } catch (error) {
+        console.error('Erro ao ativar lista:', error);
+        alert('Erro ao ativar lista');
+    }
+};
+
+window.duplicateList = async function(listId) {
+    if (!confirm('Deseja duplicar esta lista e torná-la ativa?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/weekly-lists/${listId}/duplicate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ make_active: true })
+        });
+        
+        if (response.ok) {
+            alert('Lista duplicada e ativada com sucesso!');
+            loadAdminData();
+            displayListsGrid();
+        } else {
+            alert('Erro ao duplicar lista');
+        }
+    } catch (error) {
+        console.error('Erro ao duplicar lista:', error);
+        alert('Erro ao duplicar lista');
+    }
+};
+
+window.editListProducts = function(listId) {
+    // Implementar edição de lista específica se necessário
+    alert('Funcionalidade em desenvolvimento');
+};
+
+window.deleteList = async function(listId) {
+    if (!confirm('Tem certeza que deseja remover esta lista?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/weekly-lists/${listId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            alert('Lista removida com sucesso!');
+            loadAdminData();
+            displayListsGrid();
+        } else {
+            alert('Erro ao remover lista');
+        }
+    } catch (error) {
+        console.error('Erro ao remover lista:', error);
+        alert('Erro ao remover lista');
+    }
+};
