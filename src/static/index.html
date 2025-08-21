@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista Fácil - Produtos Orgânicos</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Tela de Loading -->
+    <div id="loading" class="loading-screen">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p>Carregando lista de produtos...</p>
+        </div>
+    </div>
+
+    <!-- Painel Administrativo -->
+    <div id="admin-panel" class="admin-panel hidden">
+        <div class="admin-header">
+            <h1>🌱 Lista Fácil - Painel Administrativo</h1>
+            <button id="logout-btn" class="btn btn-secondary">Sair</button>
+        </div>
+        
+        <div class="admin-content">
+            <div class="admin-stats">
+                <div class="stat-card">
+                    <h3>Produtos Cadastrados</h3>
+                    <span id="total-products">0</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Lista Ativa</h3>
+                    <span id="active-list">Nenhuma</span>
+                </div>
+            </div>
+
+            <div class="admin-actions">
+                <button id="manage-products-btn" class="btn btn-primary">Gerenciar Produtos</button>
+                <button id="create-list-btn" class="btn btn-success">Nova Lista Semanal</button>
+            </div>
+
+            <div id="products-management" class="products-section hidden">
+                <h2>Gerenciar Produtos</h2>
+                <button id="add-product-btn" class="btn btn-primary">+ Novo Produto</button>
+                <div id="products-list" class="products-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela de Login -->
+    <div id="login-screen" class="login-screen hidden">
+        <div class="login-form">
+            <h1>🌱 Lista Fácil</h1>
+            <p>Painel Administrativo</p>
+            <form id="login-form">
+                <input type="text" id="username" placeholder="Usuário" required>
+                <input type="password" id="password" placeholder="Senha" required>
+                <button type="submit" class="btn btn-primary">Entrar</button>
+            </form>
+            <p class="login-help">
+                <a href="#" id="back-to-list">← Voltar para lista de produtos</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Interface Principal do Cliente -->
+    <div id="main-app" class="main-app">
+        <!-- Cabeçalho -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🍃 EM CASA – HORTIFRUTI DELIVERY 🍃</h1>
+                <p class="subtitle">🌱 Produtos agroecológicos identificados com essa plantinha 🌱</p>
+                <p class="week-info" id="week-info">Carregando...</p>
+                <p class="instructions">📱 Selecione os produtos desejados e envie seu pedido via WhatsApp</p>
+            </div>
+            <div class="header-actions">
+                <a href="#" id="admin-link" class="admin-link">Área Administrativa</a>
+            </div>
+        </header>
+
+        <!-- Lista de Produtos -->
+        <main class="products-container">
+            <div id="products-list-client" class="products-list">
+                <!-- Produtos serão carregados aqui via JavaScript -->
+            </div>
+        </main>
+
+        <!-- Resumo do Pedido (Fixo no Bottom) -->
+        <div id="order-summary" class="order-summary hidden">
+            <div class="summary-content">
+                <div class="summary-header">
+                    <h3>🛒 MEU PEDIDO (<span id="items-count">0</span> itens)</h3>
+                    <button id="toggle-summary" class="toggle-btn">▼</button>
+                </div>
+                <div id="summary-details" class="summary-details">
+                    <div id="selected-items" class="selected-items"></div>
+                    <div class="summary-total">
+                        <strong>TOTAL: R$ <span id="total-price">0,00</span></strong>
+                    </div>
+                    <button id="send-whatsapp" class="btn btn-whatsapp">
+                        📱 ENVIAR VIA WHATSAPP
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para adicionar/editar produto -->
+    <div id="product-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Novo Produto</h2>
+                <button id="close-modal" class="close-btn">&times;</button>
+            </div>
+            <form id="product-form">
+                <div class="form-group">
+                    <label for="product-name">Nome do Produto:</label>
+                    <input type="text" id="product-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="product-price">Preço:</label>
+                    <input type="number" id="product-price" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="product-unit">Unidade:</label>
+                    <select id="product-unit" required>
+                        <option value="un">un (unidade)</option>
+                        <option value="kg">kg (quilograma)</option>
+                        <option value="maço">maço</option>
+                        <option value="dúzia">dúzia</option>
+                        <option value="g">g (gramas)</option>
+                        <option value="ml">ml (mililitros)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="product-category">Categoria:</label>
+                    <select id="product-category" required>
+                        <!-- Categorias serão carregadas via JavaScript -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="product-organic">
+                        Produto Orgânico 🌱
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="product-available" checked>
+                        Disponível
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="cancel-product" class="btn btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
