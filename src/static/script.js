@@ -276,9 +276,20 @@ function displayProducts(data) {
                     <div class="product-name">${product.name}${organicSymbol}</div>
                     <div class="product-price">${product.unit} = R$ ${product.price.toFixed(2)}</div>
                 </div>
+                <div class="quantity-controls hidden" data-product-id="${product.id}">
+                    <button class="quantity-btn minus" onclick="changeQuantity(${product.id}, -1)">-</button>
+                    <span class="quantity-display">1</span>
+                    <button class="quantity-btn plus" onclick="changeQuantity(${product.id}, 1)">+</button>
+                </div>
             `;
             
-            productItem.addEventListener('click', () => toggleProduct(product));
+            // Adicionar evento de clique apenas na área principal (não nos botões)
+            const productInfo = productItem.querySelector('.product-info');
+            const checkbox = productItem.querySelector('.product-checkbox');
+            
+            productInfo.addEventListener('click', () => toggleProduct(product));
+            checkbox.addEventListener('click', () => toggleProduct(product));
+            
             categorySection.appendChild(productItem);
         });
         
@@ -313,13 +324,19 @@ function toggleProduct(product) {
 function updateProductUI(productId, selected) {
     const productItem = document.querySelector(`[data-product-id="${productId}"]`);
     const checkbox = productItem.querySelector('.product-checkbox');
+    const quantityControls = productItem.querySelector('.quantity-controls');
     
     if (selected) {
         productItem.classList.add('selected');
         checkbox.classList.add('checked');
+        quantityControls.classList.remove('hidden');
     } else {
         productItem.classList.remove('selected');
         checkbox.classList.remove('checked');
+        quantityControls.classList.add('hidden');
+        // Resetar quantidade para 1
+        const quantityDisplay = quantityControls.querySelector('.quantity-display');
+        quantityDisplay.textContent = '1';
     }
 }
 
@@ -350,8 +367,10 @@ function updateSelectedItemsList() {
         const itemTotal = product.price * product.quantity;
         
         itemDiv.innerHTML = `
-            <span class="item-name">${product.name}${organicSymbol}</span>
-            <span class="item-details">${product.quantity} ${product.unit} × R$ ${product.price.toFixed(2)} = R$ ${itemTotal.toFixed(2)}</span>
+            <div class="selected-item-info">
+                <span class="item-name">${product.name}${organicSymbol}</span>
+                <span class="item-details">${product.quantity} ${product.unit} × R$ ${product.price.toFixed(2)} = R$ ${itemTotal.toFixed(2)}</span>
+            </div>
         `;
         
         elements.selectedItems.appendChild(itemDiv);
@@ -411,6 +430,9 @@ function sendWhatsAppMessage() {
     const totalPrice = selectedProducts.reduce((sum, product) => sum + (product.price * product.quantity), 0);
     message += `💰 *TOTAL DO PEDIDO:*\n`;
     message += `R$ ${totalPrice.toFixed(2)}\n\n`;
+    message += `🚚 *Taxa de entrega*\n\n`;
+    message += `R$ 10,00 → Maceió e Paripueira\n`;
+    message += `R$ 20,00 → Barra Nova (Marechal Deodoro)\n\n`;
     message += `📱 Pedido gerado automaticamente via Lista Fácil\n`;
     message += `🚚 Aguardo confirmação para combinar entrega!`;
     
@@ -836,7 +858,7 @@ window.editListProducts = function(listId) {
 };
 
 window.deleteList = async function(listId) {
-    if (!confirm('Tem certeza que deseja remover esta lista?')) {
+    if (!confirm('Tem certeza que deseja remover esta lista? Esta ação não pode ser desfeita.')) {
         return;
     }
     
@@ -847,13 +869,43 @@ window.deleteList = async function(listId) {
         
         if (response.ok) {
             alert('Lista removida com sucesso!');
-            loadAdminData();
-            displayListsGrid();
+            // Recarregar dados do admin
+            await loadAdminData();
+            // Se estiver na tela de gerenciar listas, atualizar
+            if (!elements.listsManagement.classList.contains('hidden')) {
+                displayListsGrid();
+            }
         } else {
-            alert('Erro ao remover lista');
+            const errorData = await response.json();
+            alert('Erro ao remover lista: ' + (errorData.message || 'Erro desconhecido'));
         }
     } catch (error) {
         console.error('Erro ao remover lista:', error);
-        alert('Erro ao remover lista');
+        alert('Erro ao remover lista. Verifique sua conexão.');
     }
 };
+
+
+// Função para alterar quantidade de produtos
+window.changeQuantity = function(productId, change) {
+    const selectedProduct = selectedProducts.find(p => p.id === productId);
+    if (!selectedProduct) return;
+    
+    const newQuantity = selectedProduct.quantity + change;
+    
+    // Não permitir quantidade menor que 1
+    if (newQuantity < 1) return;
+    
+    // Atualizar quantidade no array
+    selectedProduct.quantity = newQuantity;
+    
+    // Atualizar display visual
+    const quantityDisplay = document.querySelector(`.quantity-controls[data-product-id="${productId}"] .quantity-display`);
+    if (quantityDisplay) {
+        quantityDisplay.textContent = newQuantity;
+    }
+    
+    // Atualizar resumo do pedido
+    updateOrderSummary();
+};
+
