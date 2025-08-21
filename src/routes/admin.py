@@ -215,3 +215,104 @@ def get_active_weekly_list():
     else:
         return jsonify({'message': 'Nenhuma lista ativa encontrada'}), 404
 
+
+@admin_bp.route('/weekly-lists/<int:list_id>/products', methods=['GET'])
+def get_weekly_list_products(list_id):
+    auth_error = require_auth()
+    if auth_error:
+        return auth_error
+    
+    weekly_list = WeeklyList.query.get_or_404(list_id)
+    return jsonify([product.to_dict() for product in weekly_list.products])
+
+@admin_bp.route('/weekly-lists/<int:list_id>/products', methods=['PUT'])
+def update_weekly_list_products(list_id):
+    auth_error = require_auth()
+    if auth_error:
+        return auth_error
+    
+    data = request.get_json()
+    weekly_list = WeeklyList.query.get_or_404(list_id)
+    
+    # Atualizar produtos da lista
+    if 'product_ids' in data:
+        products = Product.query.filter(Product.id.in_(data['product_ids'])).all()
+        weekly_list.products = products
+        db.session.commit()
+        return jsonify(weekly_list.to_dict())
+    
+    return jsonify({'error': 'product_ids é obrigatório'}), 400
+
+@admin_bp.route('/weekly-lists/<int:list_id>/products/<int:product_id>', methods=['POST'])
+def add_product_to_list(list_id, product_id):
+    auth_error = require_auth()
+    if auth_error:
+        return auth_error
+    
+    weekly_list = WeeklyList.query.get_or_404(list_id)
+    product = Product.query.get_or_404(product_id)
+    
+    if product not in weekly_list.products:
+        weekly_list.products.append(product)
+        db.session.commit()
+        return jsonify({'message': 'Produto adicionado à lista com sucesso'})
+    else:
+        return jsonify({'message': 'Produto já está na lista'}), 400
+
+@admin_bp.route('/weekly-lists/<int:list_id>/products/<int:product_id>', methods=['DELETE'])
+def remove_product_from_list(list_id, product_id):
+    auth_error = require_auth()
+    if auth_error:
+        return auth_error
+    
+    weekly_list = WeeklyList.query.get_or_404(list_id)
+    product = Product.query.get_or_404(product_id)
+    
+    if product in weekly_list.products:
+        weekly_list.products.remove(product)
+        db.session.commit()
+        return jsonify({'message': 'Produto removido da lista com sucesso'})
+    else:
+        return jsonify({'message': 'Produto não está na lista'}), 400
+
+@admin_bp.route('/weekly-lists/<int:list_id>', methods=['DELETE'])
+def delete_weekly_list(list_id):
+    auth_error = require_auth()
+    if auth_error:
+        return auth_error
+    
+    weekly_list = WeeklyList.query.get_or_404(list_id)
+    db.session.delete(weekly_list)
+    db.session.commit()
+    return jsonify({'message': 'Lista removida com sucesso'})
+
+@admin_bp.route('/weekly-lists/<int:list_id>/duplicate', methods=['POST'])
+def duplicate_weekly_list(list_id):
+    auth_error = require_auth()
+    if auth_error:
+        return auth_error
+    
+    original_list = WeeklyList.query.get_or_404(list_id)
+    
+    # Desativar lista anterior se solicitado
+    data = request.get_json() or {}
+    if data.get('make_active', False):
+        WeeklyList.query.filter_by(is_active=True).update({'is_active': False})
+    
+    # Criar nova lista baseada na original
+    today = datetime.now()
+    new_list = WeeklyList(
+        week_identifier=f"semana-{today.strftime('%d-%m-%Y')}",
+        title=f"Lista da Semana - {today.strftime('%d/%m/%Y')}",
+        is_active=data.get('make_active', False)
+    )
+    
+    db.session.add(new_list)
+    db.session.flush()
+    
+    # Copiar produtos da lista original
+    new_list.products = original_list.products.copy()
+    
+    db.session.commit()
+    return jsonify(new_list.to_dict()), 201
+
