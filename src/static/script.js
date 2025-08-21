@@ -52,6 +52,7 @@ function setupEventListeners() {
     
     // Admin actions
     document.getElementById('manage-products-btn').addEventListener('click', showProductsManagement);
+    document.getElementById('create-list-btn').addEventListener('click', createWeeklyList);
     document.getElementById('add-product-btn').addEventListener('click', () => showProductModal());
     
     // Modal
@@ -547,4 +548,51 @@ window.deleteProduct = async function(productId) {
         alert('Erro ao remover produto');
     }
 };
+
+
+
+// Função para criar lista semanal
+async function createWeeklyList() {
+    try {
+        // Verificar se há produtos disponíveis
+        const availableProducts = allProducts.filter(p => p.is_available);
+        if (availableProducts.length === 0) {
+            alert('Não há produtos disponíveis para criar uma lista semanal. Cadastre produtos primeiro.');
+            return;
+        }
+        
+        // Confirmar criação
+        if (!confirm(`Criar nova lista semanal com ${availableProducts.length} produtos disponíveis?`)) {
+            return;
+        }
+        
+        // Criar lista com data atual
+        const today = new Date();
+        const weekIdentifier = `semana-${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
+        const title = `Lista da Semana - ${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+        
+        const listData = {
+            week_identifier: weekIdentifier,
+            title: title,
+            product_ids: availableProducts.map(p => p.id)
+        };
+        
+        const response = await fetch('/api/admin/weekly-lists', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(listData)
+        });
+        
+        if (response.ok) {
+            alert('Lista semanal criada com sucesso!');
+            loadAdminData(); // Recarregar dados do admin
+        } else {
+            const error = await response.json();
+            alert('Erro ao criar lista semanal: ' + (error.message || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao criar lista semanal:', error);
+        alert('Erro ao criar lista semanal');
+    }
+}
 
