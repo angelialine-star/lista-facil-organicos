@@ -825,3 +825,125 @@ body {
         max-height: 300px;
     }
 }
+
+
+/* Estilos para controles de quantidade */
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 4px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+.quantity-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: #4CAF50;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.quantity-btn:hover {
+    background: #45a049;
+    transform: scale(1.1);
+}
+
+.quantity-btn.minus {
+    background: #f44336;
+}
+
+.quantity-btn.minus:hover {
+    background: #d32f2f;
+}
+
+.quantity-display {
+    min-width: 30px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 16px;
+    color: #2e7d32;
+    background: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+/* Ajustes no item do produto para acomodar controles */
+.product-item {
+    position: relative;
+    padding-bottom: 50px; /* Espaço para controles de quantidade */
+}
+
+.product-item.selected .quantity-controls {
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Melhorias no resumo de itens selecionados */
+.selected-item {
+    padding: 12px;
+    margin-bottom: 8px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #4CAF50;
+}
+
+.selected-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.item-name {
+    font-weight: 600;
+    color: #2e7d32;
+    font-size: 14px;
+}
+
+.item-details {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+}
+
+/* Responsividade para controles de quantidade */
+@media (max-width: 480px) {
+    .quantity-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 16px;
+    }
+    
+    .quantity-display {
+        min-width: 25px;
+        font-size: 14px;
+        padding: 2px 6px;
+    }
+    
+    .product-item {
+        padding-bottom: 45px;
+    }
+}
+
