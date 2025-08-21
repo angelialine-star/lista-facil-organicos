@@ -130,7 +130,7 @@ def generate_whatsapp_message():
     
     # Gerar link do WhatsApp
     # Número do WhatsApp do agricultor (configurável)
-    whatsapp_number = "5511999999999"  # Substituir pelo número real
+    whatsapp_number = "5582996603943"  # Substituir pelo número real
     whatsapp_url = f"https://wa.me/{whatsapp_number}?text={quote(message_text)}"
     
     return jsonify({
