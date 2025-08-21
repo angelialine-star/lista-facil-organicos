@@ -4,6 +4,40 @@ from urllib.parse import quote
 
 public_bp = Blueprint('public', __name__)
 
+@public_bp.route('/weekly-list', methods=['GET'])
+def get_current_weekly_list():
+    """Retorna a lista semanal ativa atual para a página do cliente"""
+    active_list = WeeklyList.query.filter_by(is_active=True).first()
+    
+    if not active_list:
+        return jsonify({
+            'title': 'Nenhuma lista ativa',
+            'categories': []
+        })
+    
+    # Organizar produtos por categoria
+    categories_data = {}
+    for product in active_list.products:
+        if product.is_available:  # Só mostrar produtos disponíveis
+            category = product.category
+            if category.id not in categories_data:
+                categories_data[category.id] = {
+                    'category': category.to_dict(),
+                    'products': []
+                }
+            categories_data[category.id]['products'].append(product.to_dict())
+    
+    # Ordenar categorias e produtos
+    sorted_categories = sorted(categories_data.values(), key=lambda x: x['category']['order'])
+    for cat_data in sorted_categories:
+        cat_data['products'].sort(key=lambda x: x['name'])
+    
+    return jsonify({
+        'title': active_list.title,
+        'week_identifier': active_list.week_identifier,
+        'categories': sorted_categories
+    })
+
 @public_bp.route('/list/<week_identifier>', methods=['GET'])
 def get_weekly_list(week_identifier):
     """Retorna a lista semanal para os clientes"""
@@ -130,7 +164,7 @@ def generate_whatsapp_message():
     
     # Gerar link do WhatsApp
     # Número do WhatsApp do agricultor (configurável)
-    whatsapp_number = "5582996603943"  # Substituir pelo número real
+    whatsapp_number = "5582996603943"  # Número do agricultor
     whatsapp_url = f"https://wa.me/{whatsapp_number}?text={quote(message_text)}"
     
     return jsonify({
@@ -147,4 +181,3 @@ def health_check():
         'status': 'ok',
         'message': 'Lista Fácil API está funcionando!'
     })
-
