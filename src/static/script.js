@@ -397,8 +397,11 @@ function sendWhatsAppMessage() {
         return;
     }
     
-    const customerName = prompt('Digite seu nome para identificação:');
-    if (!customerName) {
+    // Melhorar o prompt para ser mais visível
+    const customerName = prompt('🍃 LISTA FÁCIL - IDENTIFICAÇÃO DO PEDIDO 🍃\n\n📝 Digite seu NOME COMPLETO para identificação:\n\n(Exemplo: Maria Silva)');
+    
+    if (!customerName || customerName.trim() === '') {
+        alert('⚠️ Nome é obrigatório para identificar seu pedido!\n\nTente novamente e digite seu nome completo.');
         return;
     }
     
@@ -908,4 +911,3 @@ window.changeQuantity = function(productId, change) {
     // Atualizar resumo do pedido
     updateOrderSummary();
 };
-
